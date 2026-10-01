@@ -1,10 +1,11 @@
-// Fetching and parsing a Letterboxd member's public RSS feed.
+// fetching and parsing a Letterboxd member's public RSS feed. it takes a username and returns clean film data
 
 export const MAX_FILMS = 4;
+const USER_AGENT = "letterboxd-widget (+https://github.com/jessgaspardev/letterboxd-widget)";
 
-// Thrown when the feed can't be used. `kind` lets the router decide which error to show without parsing error messages.
-//   "not_found"   the Letterboxd user doesn't exist
-//   "unavailable" network problem, Letterboxd down, or blocked request
+// thrown when the feed can't be used. `kind` lets the router decide which error to show without parsing error messages.
+//   "not_found"   → the Letterboxd user doesn't exist
+//   "unavailable" → network problem, Letterboxd down, or blocked request
 export class FeedError extends Error {
   constructor(kind, message) {
     super(message);
@@ -21,9 +22,7 @@ async function fetchFeed(username) {
   let res;
   try {
     res = await fetch(`https://letterboxd.com/${username}/rss/`, {
-      headers: {
-        "User-Agent": "letterboxd-widget (+https://github.com/jessgaspardev/letterboxd-widget)",
-      },
+      headers: { "User-Agent": USER_AGENT },
     });
   } catch (err) {
     throw new FeedError("unavailable", `Network error: ${err.message}`);
@@ -37,7 +36,7 @@ export function parseFeed(xml) {
   return extractItems(xml).map(parseItem).filter(Boolean);
 }
 
-// Returns one film, or null for entries that aren't films 
+// returns one film, or null for entries that aren't films 
 function parseItem(item) {
   const url = getTag(item, "link");
   const description = getTag(item, "description");
@@ -51,15 +50,27 @@ function parseItem(item) {
       title: filmTitle,
       year: toYear(getTag(item, "letterboxd:filmYear")),
       rating: starsFromNumber(getTag(item, "letterboxd:memberRating")),
+      watchedDate: toDate(getTag(item, "letterboxd:watchedDate")),
+      liked: isYes(getTag(item, "letterboxd:memberLike")),
+      rewatch: isYes(getTag(item, "letterboxd:rewatch")),
       url,
       poster,
     };
   }
 
-  // Fallback: parse the display title, e.g. "Dune: Part Two, 2024 - ★★★★½". Anything without a ", YEAR" isn't a film entry, so it's skipped.
+  // fallback: parse the display title, e.g. "Dune: Part Two, 2024 - ★★★★½". anything without a ", YEAR" isn't a film entry, so it's skipped.
   const m = getTag(item, "title").match(/^(.*),\s*(\d{4})(?:\s+-\s+(.+))?$/);
   if (!m) return null;
-  return { title: m[1].trim(), year: toYear(m[2]), rating: (m[3] || "").trim(), url, poster };
+  return {
+    title: m[1].trim(),
+    year: toYear(m[2]),
+    rating: (m[3] || "").trim(),
+    watchedDate: null,
+    liked: false,
+    rewatch: false,
+    url,
+    poster,
+  };
 }
 
 function extractItems(xml) {
@@ -70,7 +81,7 @@ function extractItems(xml) {
   return items;
 }
 
-// Reads the text inside <tag>…</tag>, unwrapping CDATA when present and decoding XML entities (&amp; etc.) when not.
+// reads the text inside <tag>…</tag>, unwrapping CDATA when present and decoding XML entities (&amp; etc.) when not.
 function getTag(itemXml, tag) {
   const m = itemXml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i"));
   if (!m) return "";
@@ -93,6 +104,15 @@ function decodeEntities(s) {
 function toYear(s) {
   const n = parseInt(s, 10);
   return Number.isFinite(n) ? n : null;
+}
+
+// "2026-09-28" → "2026-09-28"; anything else → null
+function toDate(s) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+function isYes(s) {
+  return /^yes$/i.test(s);
 }
 
 // 4.5 → "★★★★½", 3 → "★★★", missing → ""

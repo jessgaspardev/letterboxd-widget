@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  Local test page for Phase 2. Open this file directly in your browser
+  (double-click it) while `npx wrangler dev` is running.
+  It loads the widget through real <img> tags, which is how other sites
+  will embed it. 
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Widget test</title>
+<style>
+  body { margin: 0; padding: 20px; font: 13px sans-serif; background: #ddd;
+         display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  figure { margin: 0; padding: 10px; }
+  figcaption { margin-bottom: 6px; color: #555; }
+</style>
+</head>
+<body>
+<script>
+  const BASE = "http://localhost:8787/v1/letterboxd/";
+  const USER = "amandaseyfrieds";
+  const cases = [
+    ["Default", `${USER}.svg`],
+    ["6 films", `${USER}.svg?limit=6`],
+    ["Light, narrowest", `${USER}.svg?theme=light&width=200`],
+    ["Transparent on dark", `${USER}.svg?theme=transparent`, "#222"],
+    ["Transparent on white", `${USER}.svg?theme=transparent`, "#fff"],
+    ["Posters hidden", `${USER}.svg?hide=posters&limit=8`],
+    ["Minimal", `${USER}.svg?hide=header,date,likes&limit=3`],
+    ["Custom", `${USER}.svg?accent=f0f&heart=0ff&bg=003&header=Films%20lately&radius=16&width=420&limit=3`],
+    ["Invalid params (should look like default)", `${USER}.svg?limit=99&width=abc&theme=nope&accent=red`],
+    ["User not found", `nobodyhere98765.svg`],
+    ["Invalid username", `bad-name!.svg`],
+  ];
+  for (const [label, path, bg] of cases) {
+    const fig = document.createElement("figure");
+    fig.style.background = bg || "transparent";
+    fig.innerHTML = `<figcaption>${label}</figcaption><img src="${BASE}${path}" alt="">`;
+    document.body.appendChild(fig);
+  }
+</script>
+</body>
+</html>
