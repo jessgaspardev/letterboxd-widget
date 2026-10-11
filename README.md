@@ -2,7 +2,7 @@
 
 An embeddable image of your recently logged films on Letterboxd. 
 
-**Customize it:** _(link to the builder page on your Neocities site, once it exists)_
+**Customize it:** _(https://jessgaspar.dev/letterboxd-widget)_
 
 ---
 
