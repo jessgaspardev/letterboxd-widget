@@ -1,17 +1,40 @@
-// downloads poster images and turns them into data: URIs, because an SVG shown through an <img> tag is not allowed to load external files
-
 const SMALL_SIZE = "-0-70-0-105-crop";
 const MAX_BYTES = 500_000;
+const KV_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-export async function embedPosters(films) {
+export async function embedPosters(films, env, ctx) {
   return Promise.all(
-    films.map(async (film) => ({ ...film, posterData: await toDataUri(film.poster) }))
+    films.map(async (film) => ({ ...film, posterData: await posterData(film.poster, env, ctx) }))
   );
 }
 
-async function toDataUri(url) {
+async function posterData(url, env, ctx) {
   if (!url) return "";
-  // asking for a small version keeps each SVG light. if that size doesn't exist, fall back to the original URL
+  const key = `poster:${url}`.slice(0, 512); // KV keys max out at 512 bytes
+
+  if (env.WIDGET_KV) {
+    try {
+      const cached = await env.WIDGET_KV.get(key);
+      if (cached) return cached;
+    } catch {
+      // fall through to downloading
+    }
+  }
+
+  const data = await toDataUri(url);
+  if (data && env.WIDGET_KV) {
+    ctx.waitUntil(
+      env.WIDGET_KV.put(key, data, { expirationTtl: KV_TTL_SECONDS }).catch((err) =>
+        console.warn(`Couldn't cache poster: ${err.message}`)
+      )
+    );
+  }
+  return data;
+}
+
+async function toDataUri(url) {
+  // Letterboxd's poster URLs encode their size, e.g. "...-0-600-0-900-crop.jpg".
+  // Asking for a small version keeps each SVG light. If that size doesn't exist, fall back to the original URL.
   const small = url.replace(/-0-\d+-0-\d+-crop/, SMALL_SIZE);
   return (small !== url && (await download(small))) || (await download(url)) || "";
 }

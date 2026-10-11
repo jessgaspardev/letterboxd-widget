@@ -78,7 +78,7 @@ Height in px = 34 + 67 × n, where n is the number of films shown (the smaller o
 ### Success
 
 - `Content-Type: image/svg+xml; charset=utf-8`
-- `Cache-Control: public, max-age=3600` (1 hour)
+- `Cache-Control: public, max-age=3600, stale-while-revalidate=86400` (1 hour)
 - The SVG contains a `<title>` element (`Recently watched on Letterboxd by {username}`) for screen readers.
 - Poster images are embedded inside the SVG, since `<img>`-loaded SVGs can't load external files.
 
@@ -93,6 +93,7 @@ The `.svg` route **always returns a valid image**, with HTTP status `200`, even 
 | Profile has no logged films | "No films logged yet" | 5 min |
 | Letterboxd unreachable, cached copy exists | _(renders the last good copy normally)_ | 5 min |
 | Letterboxd unreachable, no cached copy | "Couldn't reach Letterboxd" | 1 min |
+| “Too many requests (rate limited)” | “Too many requests, try again in a minute” | 10 sec |
 
 The `.json` route uses real status codes instead: `400` invalid username, `404` user not found, `502` Letterboxd unreachable.
 
@@ -124,7 +125,7 @@ The `.json` route uses real status codes instead: `400` invalid username, `404` 
 
 ## Freshness
 
-Film data is cached for up to an hour, so a newly logged film can take that long to appear. 
+Images are cached for an hour. After that, the next view may still show the previous version while a fresh one is fetched in the background, so a newly logged film can take a little over an hour to appear. If Letterboxd is unreachable, the widget shows the most recent films it has saved.
 
 ---
 
